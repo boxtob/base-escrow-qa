@@ -85,6 +85,7 @@ export default function Home() {
     setPostResult(null)
 
     try {
+      console.log("window.ethereum exists?", !!window.ethereum)
       // Step 0: Force request accounts (fixes "unknown account")
       const provider = window.ethereum;  // Coinbase Wallet injects this
       if (!provider) throw new Error('No injected provider')
