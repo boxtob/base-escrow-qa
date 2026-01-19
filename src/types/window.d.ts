@@ -1,5 +1,6 @@
-import { Eip1193Provider } from 'viem'
-
 interface Window {
-  ethereum?: any;
+  ethereum?: {
+    request: (args: { method: string; params?: any[] }) => Promise<any>;
+    // add other methods if needed
+  };
 }
