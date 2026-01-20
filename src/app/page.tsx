@@ -31,7 +31,7 @@ const bountyAbi = [
 
 const publicClient = createPublicClient({
   chain: baseSepolia,
-  transport: http('https://sepolia.base.org'),
+  transport: http('https://base-sepolia.publicnode.com'),
 })
 
 export default function Home() {
