@@ -75,79 +75,79 @@ export default function Home() {
   }, [])
 
   // Post bounty function
-  const postBounty = async () => {
-    if (!amount || !questionId) {
-      setPostError('Please fill both fields')
-      return
-    }
+ const postBounty = async () => {
+  if (!amount || !questionId) {
+    setPostError('Please fill both fields')
+    return
+  }
 
-    setIsPosting(true)
-    setPostError(null)
-    setPostResult(null)
+  setIsPosting(true)
+  setPostError(null)
+  setPostResult(null)
 
-    try {
-      const provider = window.ethereum
-      if (!provider) throw new Error('No injected provider')
+  try {
+    const provider = window.ethereum
+    if (!provider) throw new Error('No injected provider')
 
-      const accounts = await provider.request({ method: 'eth_requestAccounts' })
-      const userAddress = accounts[0]
-      if (!userAddress) throw new Error('No account selected')
+    const accounts = await provider.request({ method: 'eth_requestAccounts' })
+    const userAddress = accounts[0]
+    if (!userAddress) throw new Error('No account selected')
 
-      console.log('User address:', userAddress)
+    console.log('User address:', userAddress)
 
-      // Step 1: Approve USDC
-      const approveAmount = parseUnits(amount, 6)
-      const approveData = '0x095ea7b3' +
-        CONTRACT_ADDRESS.slice(2).padStart(64, '0') +
-        approveAmount.toString(16).padStart(64, '0')
+    // Step 1: Approve USDC
+    const approveAmount = parseUnits(amount, 6)
+    const approveData = '0x095ea7b3' +
+      CONTRACT_ADDRESS.slice(2).padStart(64, '0') +
+      approveAmount.toString(16).padStart(64, '0')
 
-      console.log('Sending approve tx with data:', approveData)
+    console.log('Sending approve tx with data:', approveData)
 
-      const approveTx = await provider.request({
-        method: 'eth_sendTransaction',
-        params: [{
-          from: userAddress,
-          to: USDC_ADDRESS,
-          data: approveData,
-        }],
-      })
-      console.log('Approve tx hash:', approveTx)
-      setPostResult(`USDC approved! Tx: ${approveTx.slice(0, 10)}...`)
+    const approveTx = await provider.request({
+      method: 'eth_sendTransaction',
+      params: [{
+        from: userAddress,
+        to: USDC_ADDRESS,
+        data: approveData,
+      }],
+    })
+    console.log('Approve tx hash:', approveTx)
+    setPostResult(`USDC approved! Tx: ${approveTx.slice(0, 10)}...`)
 
-      // Wait for approve to be mined (simple delay — in real app use waitForTransactionReceipt)
-      await new Promise(resolve => setTimeout(resolve, 10000)) // 10 seconds
+    // Wait for approve to be mined (simple delay — in real app use waitForTransactionReceipt)
+    await new Promise(resolve => setTimeout(resolve, 10000)) // 10 seconds
 
-      // Step 2: Post bounty
-      const amountWei = parseUnits(amount, 6)
-      const questionBytes = ethers.hexlify(ethers.toUtf8Bytes(questionId)).padEnd(64, '0')
+    // Step 2: Post bounty
+    const amountWei = parseUnits(amount, 6)
+    const questionBytes = ethers.hexlify(ethers.toUtf8Bytes(questionId)).padEnd(64, '0')
 
-      const postSig = ethers.id('postBounty(uint256,string)').slice(0, 10)
-      const postData = postSig +
-        amountWei.toString(16).padStart(64, '0') +
-        questionBytes
+    const postSig = ethers.id('postBounty(uint256,string)').slice(0, 10)
+    const postData = postSig +
+      amountWei.toString(16).padStart(64, '0') +
+      questionBytes
 
-      console.log('Sending postBounty tx with data:', postData)
+    console.log('Sending postBounty tx with data:', postData)
 
-      const postTx = await provider.request({
-        method: 'eth_sendTransaction',
-        params: [{
-          from: userAddress,
-          to: CONTRACT_ADDRESS,
-          data: postData,
-        }],
-      })
+    const postTx = await provider.request({
+      method: 'eth_sendTransaction',
+      params: [{
+        from: userAddress,
+        to: CONTRACT_ADDRESS,
+        data: postData,
+      }],
+    })
 
-      console.log('Post tx hash:', postTx)
-      setPostResult(`Bounty posted! Tx: ${postTx} (check Basescan)`)
-      setAmount('')
-      setQuestionId('')
-    } catch (err: any) {
-      console.error('Transaction failed:', err)
-      setPostError(err.message || 'Transaction failed – check wallet or allowance')
-    } finally {
-      setIsPosting(false)
-    }
-  } 
+    console.log('Post tx hash:', postTx)
+    setPostResult(`Bounty posted! Tx: ${postTx} (check Basescan)`)
+    setAmount('')
+    setQuestionId('')
+  } catch (err: any) {
+    console.error('Transaction failed:', err)
+    setPostError(err.message || 'Transaction failed – check wallet or allowance')
+  } finally {
+    setIsPosting(false)
+  }
+} 
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8 bg-gradient-to-b from-gray-900 to-gray-800 text-white">
