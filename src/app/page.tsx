@@ -84,6 +84,7 @@ export default function Home() {
       const provider = window.ethereum
       if (!provider) throw new Error('No injected provider (Coinbase Wallet not detected)')
 
+      // Step 0: Request accounts
       const accounts = await provider.request({ method: 'eth_requestAccounts' })
       const userAddress = accounts[0]
       if (!userAddress) throw new Error('No account selected in wallet')
@@ -91,7 +92,7 @@ export default function Home() {
       console.log('User address:', userAddress)
 
       // Step 1: Approve USDC (higher amount for testing)
-      const approveAmount = parseUnits('10', 6) // 10 USDC allowance — safe
+      const approveAmount = parseUnits('10', 6)  // 10 USDC allowance — safe for multiple posts
       const approveData = '0x095ea7b3' +
         CONTRACT_ADDRESS.slice(2).padStart(64, '0') +
         approveAmount.toString(16).padStart(64, '0')
@@ -114,12 +115,17 @@ export default function Home() {
 
       // Step 2: Post bounty
       const amountWei = parseUnits(amount, 6)
-      const questionBytes = ethers.hexlify(ethers.toUtf8Bytes(questionId)).padEnd(64, '0')
+      // Correct string encoding: length prefix (32 bytes) + data (padded to 32-byte words)
+      const questionBytes = ethers.toUtf8Bytes(questionId)
+      const questionLength = questionBytes.length
+      const lengthHex = questionLength.toString(16).padStart(64, '0') // padded to 32 bytes
+      const paddedQuestion = ethers.hexlify(questionBytes).slice(2).padEnd(Math.ceil(questionLength / 32) * 64, '0')
 
-      const postSig = ethers.id('postBounty(uint256,string)').slice(0, 10)
+      const postSig = ethers.keccak256(ethers.toUtf8Bytes('postBounty(uint256,string)')).slice(0, 10)
       const postData = postSig +
         amountWei.toString(16).padStart(64, '0') +
-        questionBytes
+        lengthHex +
+        paddedQuestion
 
       console.log('Sending postBounty tx with data:', postData)
 
@@ -129,6 +135,8 @@ export default function Home() {
           from: userAddress,
           to: CONTRACT_ADDRESS,
           data: postData,
+          gas: '0x' + (300000).toString(16), // 300k gas
+          value: '0x0',
         }],
       })
 
