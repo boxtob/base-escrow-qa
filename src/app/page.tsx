@@ -49,6 +49,8 @@ export default function Home() {
 
   // Read bounty count (re-run after successful post)
   useEffect(() => {
+    if (typeof window === 'undefined') return
+
     const fetchCount = async () => {
       setIsLoadingCount(true)
       setReadError(null)
@@ -83,7 +85,7 @@ export default function Home() {
     setPostResult(null)
 
     try {
-      const provider = window.ethereum
+      const provider = typeof window !== 'undefined' ? window.ethereum : null
       if (!provider) throw new Error('No injected provider (Coinbase Wallet not detected)')
 
       // Step 0: Request accounts
