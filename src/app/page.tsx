@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { createPublicClient, http, parseUnits } from 'viem'
 import { baseSepolia } from 'viem/chains'
 import { CoinbaseConnectButton } from '@/components/CoinbaseConnectButton'
-import { hexlify, toUtf8Bytes, id } from 'ethers'  // correct v6 imports
+import { ethers } from 'ethers'
 
 const CONTRACT_ADDRESS = '0xb4575AC1cCe8511feF15386BBD3012e35Ae573aa' as `0x${string}`
 const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as `0x${string}`
@@ -24,6 +24,19 @@ const bountyAbi = [
     ],
     name: 'postBounty',
     outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+] as const
+
+const usdcAbi = [
+  {
+    inputs: [
+      { name: 'spender', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    name: 'approve',
+    outputs: [{ name: '', type: 'bool' }],
     stateMutability: 'nonpayable',
     type: 'function',
   },
@@ -59,7 +72,7 @@ export default function Home() {
       .then((count) => setBountyCount(count.toString()))
       .catch((err) => setReadError(err.message || 'Failed to read'))
       .finally(() => setIsLoadingCount(false))
-  }, [postResult])  // auto-refresh after post
+  }, [])
 
   // Post bounty function
   const postBounty = async () => {
@@ -82,8 +95,8 @@ export default function Home() {
 
       console.log('User address:', userAddress)
 
-      // Step 1: Approve USDC (higher amount)
-      const approveAmount = parseUnits('10', 6)  // 10 USDC allowance
+      // Step 1: Approve USDC
+      const approveAmount = parseUnits(amount, 6)
       const approveData = '0x095ea7b3' +
         CONTRACT_ADDRESS.slice(2).padStart(64, '0') +
         approveAmount.toString(16).padStart(64, '0')
@@ -101,14 +114,14 @@ export default function Home() {
       console.log('Approve tx hash:', approveTx)
       setPostResult(`USDC approved! Tx: ${approveTx.slice(0, 10)}...`)
 
-      // Wait 15 seconds for approve to be mined
-      await new Promise(resolve => setTimeout(resolve, 15000))
+      // Wait for approve to be mined (simple delay — in real app use waitForTransactionReceipt)
+      await new Promise(resolve => setTimeout(resolve, 10000)) // 10 seconds
 
       // Step 2: Post bounty
       const amountWei = parseUnits(amount, 6)
-      const questionBytes = hexlify(toUtf8Bytes(questionId)).padEnd(64, '0')
+      const questionBytes = ethers.hexlify(ethers.toUtf8Bytes(questionId)).padEnd(64, '0')
 
-      const postSig = id('postBounty(uint256,string)').slice(0, 10)
+      const postSig = ethers.id('postBounty(uint256,string)').slice(0, 10)
       const postData = postSig +
         amountWei.toString(16).padStart(64, '0') +
         questionBytes
@@ -125,7 +138,7 @@ export default function Home() {
       })
 
       console.log('Post tx hash:', postTx)
-      setPostResult(`Bounty posted! Tx: ${postTx.slice(0, 10)}...`)
+      setPostResult(`Bounty posted! Tx: ${postTx} (check Basescan)`)
       setAmount('')
       setQuestionId('')
     } catch (err: any) {
@@ -134,7 +147,7 @@ export default function Home() {
     } finally {
       setIsPosting(false)
     }
-  }
+  } 
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8 bg-gradient-to-b from-gray-900 to-gray-800 text-white">
@@ -160,7 +173,7 @@ export default function Home() {
 
           <input
             type="text"
-            placeholder="Amount in USDC (e.g. 1)"
+            placeholder="Amount in USDC (e.g. 5.5)"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="w-full p-3 mb-4 bg-gray-900 border border-gray-700 rounded text-white placeholder-gray-500"
@@ -168,7 +181,7 @@ export default function Home() {
 
           <input
             type="text"
-            placeholder="Question ID (e.g. test-question)"
+            placeholder="Question ID (e.g. how-to-deploy-nft)"
             value={questionId}
             onChange={(e) => setQuestionId(e.target.value)}
             className="w-full p-3 mb-6 bg-gray-900 border border-gray-700 rounded text-white placeholder-gray-500"
