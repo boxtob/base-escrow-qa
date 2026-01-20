@@ -160,6 +160,26 @@ export default function Home() {
           ) : (
             <p className="text-5xl font-bold">{bountyCount}</p>
           )}
+
+          {/* Manual Refresh Button */}
+          <button
+            onClick={() => {
+              setIsLoadingCount(true)
+              setReadError(null)
+              publicClient
+                .readContract({
+                  address: CONTRACT_ADDRESS,
+                  abi: bountyAbi,
+                  functionName: 'bountyCount',
+                })
+                .then((count) => setBountyCount(count.toString()))
+                .catch((err) => setReadError(err.message || 'Failed to read'))
+                .finally(() => setIsLoadingCount(false))
+            }}
+            className="mt-4 bg-gray-600 hover:bg-gray-700 px-6 py-2 rounded-lg text-white text-sm transition"
+          >
+            Refresh Count
+          </button>
         </div>
 
         <div className="mt-12 bg-gray-800/50 p-8 rounded-xl border border-gray-700">
