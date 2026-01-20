@@ -29,19 +29,6 @@ const bountyAbi = [
   },
 ] as const
 
-const usdcAbi = [
-  {
-    inputs: [
-      { name: 'spender', type: 'address' },
-      { name: 'amount', type: 'uint256' },
-    ],
-    name: 'approve',
-    outputs: [{ name: '', type: 'bool' }],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-] as const
-
 const publicClient = createPublicClient({
   chain: baseSepolia,
   transport: http('https://sepolia.base.org'),
@@ -58,21 +45,28 @@ export default function Home() {
   const [postResult, setPostResult] = useState<string | null>(null)
   const [postError, setPostError] = useState<string | null>(null)
 
-  // Read bounty count
+  // Read bounty count (re-run after successful post)
   useEffect(() => {
-    setIsLoadingCount(true)
-    setReadError(null)
+    const fetchCount = async () => {
+      setIsLoadingCount(true)
+      setReadError(null)
 
-    publicClient
-      .readContract({
-        address: CONTRACT_ADDRESS,
-        abi: bountyAbi,
-        functionName: 'bountyCount',
-      })
-      .then((count) => setBountyCount(count.toString()))
-      .catch((err) => setReadError(err.message || 'Failed to read'))
-      .finally(() => setIsLoadingCount(false))
-  }, [isConnected, postResult])
+      try {
+        const count = await publicClient.readContract({
+          address: CONTRACT_ADDRESS,
+          abi: bountyAbi,
+          functionName: 'bountyCount',
+        })
+        setBountyCount(count.toString())
+      } catch (err: any) {
+        setReadError(err.message || 'Failed to read bounty count')
+      } finally {
+        setIsLoadingCount(false)
+      }
+    }
+
+    fetchCount()
+  }, [postResult])  // re-fetch after post success
 
   // Post bounty function
   const postBounty = async () => {
@@ -87,16 +81,16 @@ export default function Home() {
 
     try {
       const provider = window.ethereum
-      if (!provider) throw new Error('No injected provider')
+      if (!provider) throw new Error('No injected provider (Coinbase Wallet not detected)')
 
       const accounts = await provider.request({ method: 'eth_requestAccounts' })
       const userAddress = accounts[0]
-      if (!userAddress) throw new Error('No account selected')
+      if (!userAddress) throw new Error('No account selected in wallet')
 
       console.log('User address:', userAddress)
 
-      // Step 1: Approve USDC
-      const approveAmount = parseUnits(amount, 6)
+      // Step 1: Approve USDC (higher amount for testing)
+      const approveAmount = parseUnits('10', 6) // 10 USDC allowance — safe
       const approveData = '0x095ea7b3' +
         CONTRACT_ADDRESS.slice(2).padStart(64, '0') +
         approveAmount.toString(16).padStart(64, '0')
@@ -114,8 +108,8 @@ export default function Home() {
       console.log('Approve tx hash:', approveTx)
       setPostResult(`USDC approved! Tx: ${approveTx.slice(0, 10)}...`)
 
-      // Wait for approve to be mined (simple delay — in real app use waitForTransactionReceipt)
-      await new Promise(resolve => setTimeout(resolve, 10000)) // 10 seconds
+      // Wait for approve to be mined (15 seconds — adjust if needed)
+      await new Promise(resolve => setTimeout(resolve, 15000))
 
       // Step 2: Post bounty
       const amountWei = parseUnits(amount, 6)
@@ -147,7 +141,7 @@ export default function Home() {
     } finally {
       setIsPosting(false)
     }
-  } 
+  }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8 bg-gradient-to-b from-gray-900 to-gray-800 text-white">
