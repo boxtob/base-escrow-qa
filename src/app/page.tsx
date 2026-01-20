@@ -115,17 +115,19 @@ export default function Home() {
 
       // Step 2: Post bounty
       const amountWei = parseUnits(amount, 6)
-      // Correct string encoding: length prefix (32 bytes) + data (padded to 32-byte words)
+
+      // Correct string encoding: 32-byte offset + length + data (padded to 32-byte words)
       const questionBytes = ethers.toUtf8Bytes(questionId)
       const questionLength = questionBytes.length
-      const lengthHex = questionLength.toString(16).padStart(64, '0') // padded to 32 bytes
+      const lengthHex = questionLength.toString(16).padStart(64, '0') // length as 32-byte hex
       const paddedQuestion = ethers.hexlify(questionBytes).slice(2).padEnd(Math.ceil(questionLength / 32) * 64, '0')
 
       const postSig = ethers.keccak256(ethers.toUtf8Bytes('postBounty(uint256,string)')).slice(0, 10)
       const postData = postSig +
-        amountWei.toString(16).padStart(64, '0') +
-        lengthHex +
-        paddedQuestion
+        amountWei.toString(16).padStart(64, '0') +  // amount (32 bytes)
+        '0000000000000000000000000000000000000000000000000000000000000040' + // offset to string (64 bytes from start of args)
+        lengthHex +  // string length (32 bytes)
+        paddedQuestion // string data (padded)
 
       console.log('Sending postBounty tx with data:', postData)
 
