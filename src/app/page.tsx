@@ -72,7 +72,7 @@ export default function Home() {
       .then((count) => setBountyCount(count.toString()))
       .catch((err) => setReadError(err.message || 'Failed to read'))
       .finally(() => setIsLoadingCount(false))
-  }, [])
+  }, [isConnected, postResult])
 
   // Post bounty function
   const postBounty = async () => {
