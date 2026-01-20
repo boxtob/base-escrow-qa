@@ -56,6 +56,7 @@ export default function Home() {
           address: CONTRACT_ADDRESS,
           abi: bountyAbi,
           functionName: 'bountyCount',
+          blockTag: 'latest',
         })
         setBountyCount(count.toString())
       } catch (err: any) {
@@ -171,6 +172,7 @@ export default function Home() {
                   address: CONTRACT_ADDRESS,
                   abi: bountyAbi,
                   functionName: 'bountyCount',
+                  blockTag: 'latest',
                 })
                 .then((count) => setBountyCount(count.toString()))
                 .catch((err) => setReadError(err.message || 'Failed to read'))
