@@ -95,8 +95,8 @@ export default function Home() {
 
       console.log('User address:', userAddress)
 
-      // Step 1: Approve USDC (higher amount for testing)
-      const approveAmount = parseUnits('10', 6)  // 10 USDC allowance — safe
+      // Step 1: Approve USDC
+      const approveAmount = parseUnits(amount, 6)
       const approveData = '0x095ea7b3' +
         CONTRACT_ADDRESS.slice(2).padStart(64, '0') +
         approveAmount.toString(16).padStart(64, '0')
@@ -114,8 +114,8 @@ export default function Home() {
       console.log('Approve tx hash:', approveTx)
       setPostResult(`USDC approved! Tx: ${approveTx.slice(0, 10)}...`)
 
-      // Wait longer for approve to be mined (10 seconds)
-      await new Promise(resolve => setTimeout(resolve, 10000))
+      // Wait for approve to be mined (simple delay — in real app use waitForTransactionReceipt)
+      await new Promise(resolve => setTimeout(resolve, 10000)) // 10 seconds
 
       // Step 2: Post bounty
       const amountWei = parseUnits(amount, 6)
