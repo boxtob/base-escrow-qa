@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createPublicClient, http, parseUnits } from 'viem'
 import { baseSepolia } from 'viem/chains'
 import { CoinbaseConnectButton } from '@/components/CoinbaseConnectButton'
+import { ethers } from 'ethers'
 
 const CONTRACT_ADDRESS = '0xb4575AC1cCe8511feF15386BBD3012e35Ae573aa' as `0x${string}`
 const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as `0x${string}`
@@ -85,17 +86,23 @@ export default function Home() {
     setPostResult(null)
 
     try {
-      console.log("window.ethereum exists?", !!window.ethereum)
-      // Step 0: Force request accounts (fixes "unknown account")
-      const provider = window.ethereum;  // Coinbase Wallet injects this
+      const provider = window.ethereum
       if (!provider) throw new Error('No injected provider')
 
       const accounts = await provider.request({ method: 'eth_requestAccounts' })
       const userAddress = accounts[0]
       if (!userAddress) throw new Error('No account selected')
 
+      console.log('User address:', userAddress)
+
       // Step 1: Approve USDC
-      const approveData = `0x095ea7b3${CONTRACT_ADDRESS.slice(2).padStart(64, '0')}${parseUnits(amount, 6).toString(16).padStart(64, '0')}`
+      const approveAmount = parseUnits(amount, 6)
+      const approveData = '0x095ea7b3' +
+        CONTRACT_ADDRESS.slice(2).padStart(64, '0') +
+        approveAmount.toString(16).padStart(64, '0')
+
+      console.log('Sending approve tx with data:', approveData)
+
       const approveTx = await provider.request({
         method: 'eth_sendTransaction',
         params: [{
@@ -104,11 +111,23 @@ export default function Home() {
           data: approveData,
         }],
       })
-      console.log('Approve tx:', approveTx)
-      setPostResult(`Approved USDC! Tx: ${approveTx.slice(0, 10)}...`)
+      console.log('Approve tx hash:', approveTx)
+      setPostResult(`USDC approved! Tx: ${approveTx.slice(0, 10)}...`)
+
+      // Wait for approve to be mined (simple delay — in real app use waitForTransactionReceipt)
+      await new Promise(resolve => setTimeout(resolve, 10000)) // 10 seconds
 
       // Step 2: Post bounty
-      const postData = `0x...` // fill with correct function sig + args (see below)
+      const amountWei = parseUnits(amount, 6)
+      const questionBytes = ethers.hexlify(ethers.toUtf8Bytes(questionId)).padEnd(64, '0')
+
+      const postSig = ethers.id('postBounty(uint256,string)').slice(0, 10)
+      const postData = postSig +
+        amountWei.toString(16).padStart(64, '0') +
+        questionBytes
+
+      console.log('Sending postBounty tx with data:', postData)
+
       const postTx = await provider.request({
         method: 'eth_sendTransaction',
         params: [{
@@ -117,15 +136,18 @@ export default function Home() {
           data: postData,
         }],
       })
-      setPostResult(`Bounty posted! Tx: ${postTx.slice(0, 10)}...`)
+
+      console.log('Post tx hash:', postTx)
+      setPostResult(`Bounty posted! Tx: ${postTx} (check Basescan)`)
       setAmount('')
       setQuestionId('')
     } catch (err: any) {
-      setPostError(err.message || 'Transaction failed')
+      console.error('Transaction failed:', err)
+      setPostError(err.message || 'Transaction failed – check wallet or allowance')
     } finally {
       setIsPosting(false)
     }
-  }
+  } 
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8 bg-gradient-to-b from-gray-900 to-gray-800 text-white">

@@ -12,8 +12,7 @@ export function CoinbaseConnectButton() {
     console.log("Initializing new Coinbase SDK...")
     try {
       const coinbaseSdk = createCoinbaseWalletSDK({
-        appName: 'Base Bounty Q&A',
-        // darkMode: true,
+        appName: 'Base Bounty Q&A'
       })
       console.log("New SDK initialized:", coinbaseSdk)
       setSdk(coinbaseSdk)
