@@ -114,6 +114,8 @@ export default function Home() {
           from: userAddress,
           to: USDC_ADDRESS,
           data: approveData,
+          gas: '0x' + (200000).toString(16),  // 200k gas — safe for approve
+          value: '0x0',                       // no ETH value
         }],
       })
       console.log('Approve tx hash:', approveTx)
@@ -146,7 +148,8 @@ export default function Home() {
           from: userAddress,
           to: CONTRACT_ADDRESS,
           data: postData,
-          gas: '0x' + (300000).toString(16), // 300k gas
+          chainId: '0x14a34',  // 84532 in hex
+          gas: '0x' + (300000).toString(16),
           value: '0x0',
         }],
       })
