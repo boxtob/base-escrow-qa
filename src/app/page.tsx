@@ -29,22 +29,9 @@ const bountyAbi = [
   },
 ] as const
 
-const usdcAbi = [
-  {
-    inputs: [
-      { name: 'spender', type: 'address' },
-      { name: 'amount', type: 'uint256' },
-    ],
-    name: 'approve',
-    outputs: [{ name: '', type: 'bool' }],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-] as const
-
 const publicClient = createPublicClient({
   chain: baseSepolia,
-  transport: http('https://sepolia.base.org'),
+  transport: http('https://base-sepolia.publicnode.com'),
 })
 
 export default function Home() {
@@ -58,24 +45,39 @@ export default function Home() {
   const [postResult, setPostResult] = useState<string | null>(null)
   const [postError, setPostError] = useState<string | null>(null)
 
-  // Read bounty count
+  // Read bounty count (re-run after successful post)
   useEffect(() => {
-    setIsLoadingCount(true)
-    setReadError(null)
+    if (typeof window === 'undefined') return
 
-    publicClient
-      .readContract({
-        address: CONTRACT_ADDRESS,
-        abi: bountyAbi,
-        functionName: 'bountyCount',
-      })
-      .then((count) => setBountyCount(count.toString()))
-      .catch((err) => setReadError(err.message || 'Failed to read'))
-      .finally(() => setIsLoadingCount(false))
-  }, [])
+    const fetchCount = async () => {
+      setIsLoadingCount(true)
+      setReadError(null)
+
+      try {
+        const count = await publicClient.readContract({
+          address: CONTRACT_ADDRESS,
+          abi: bountyAbi,
+          functionName: 'bountyCount',
+          blockTag: 'latest',
+        })
+        setBountyCount(count.toString())
+      } catch (err: any) {
+        setReadError(err.message || 'Failed to read bounty count')
+      } finally {
+        setIsLoadingCount(false)
+      }
+    }
+
+    fetchCount()
+  }, [postResult])  // re-fetch after post success
 
   // Post bounty function
   const postBounty = async () => {
+    if (typeof window === 'undefined') {
+      setPostError('Cannot post bounty on server – please reload')
+      return
+    }
+
     if (!amount || !questionId) {
       setPostError('Please fill both fields')
       return
@@ -86,17 +88,18 @@ export default function Home() {
     setPostResult(null)
 
     try {
-      const provider = window.ethereum
-      if (!provider) throw new Error('No injected provider')
+      const provider = typeof window !== 'undefined' ? window.ethereum : null
+      if (!provider) throw new Error('No injected provider (Coinbase Wallet not detected)')
 
+      // Step 0: Request accounts
       const accounts = await provider.request({ method: 'eth_requestAccounts' })
       const userAddress = accounts[0]
-      if (!userAddress) throw new Error('No account selected')
+      if (!userAddress) throw new Error('No account selected in wallet')
 
       console.log('User address:', userAddress)
 
-      // Step 1: Approve USDC
-      const approveAmount = parseUnits(amount, 6)
+      // Step 1: Approve USDC (higher amount for testing)
+      const approveAmount = parseUnits('10', 6)  // 10 USDC allowance — safe for multiple posts
       const approveData = '0x095ea7b3' +
         CONTRACT_ADDRESS.slice(2).padStart(64, '0') +
         approveAmount.toString(16).padStart(64, '0')
@@ -109,22 +112,31 @@ export default function Home() {
           from: userAddress,
           to: USDC_ADDRESS,
           data: approveData,
+          gas: '0x' + (200000).toString(16),  // 200k gas — safe for approve
+          value: '0x0',                       // no ETH value
         }],
       })
       console.log('Approve tx hash:', approveTx)
       setPostResult(`USDC approved! Tx: ${approveTx.slice(0, 10)}...`)
 
-      // Wait for approve to be mined (simple delay — in real app use waitForTransactionReceipt)
-      await new Promise(resolve => setTimeout(resolve, 10000)) // 10 seconds
+      // Wait for approve to be mined (15 seconds — adjust if needed)
+      await new Promise(resolve => setTimeout(resolve, 15000))
 
       // Step 2: Post bounty
       const amountWei = parseUnits(amount, 6)
-      const questionBytes = ethers.hexlify(ethers.toUtf8Bytes(questionId)).padEnd(64, '0')
 
-      const postSig = ethers.id('postBounty(uint256,string)').slice(0, 10)
+      // Correct string encoding: 32-byte offset + length + data (padded to 32-byte words)
+      const questionBytes = ethers.toUtf8Bytes(questionId)
+      const questionLength = questionBytes.length
+      const lengthHex = questionLength.toString(16).padStart(64, '0') // length as 32-byte hex
+      const paddedQuestion = ethers.hexlify(questionBytes).slice(2).padEnd(Math.ceil(questionLength / 32) * 64, '0')
+
+      const postSig = ethers.keccak256(ethers.toUtf8Bytes('postBounty(uint256,string)')).slice(0, 10)
       const postData = postSig +
-        amountWei.toString(16).padStart(64, '0') +
-        questionBytes
+        amountWei.toString(16).padStart(64, '0') +  // amount (32 bytes)
+        '0000000000000000000000000000000000000000000000000000000000000040' + // offset to string (64 bytes from start of args)
+        lengthHex +  // string length (32 bytes)
+        paddedQuestion // string data (padded)
 
       console.log('Sending postBounty tx with data:', postData)
 
@@ -134,6 +146,9 @@ export default function Home() {
           from: userAddress,
           to: CONTRACT_ADDRESS,
           data: postData,
+          chainId: '0x14a34',  // 84532 in hex
+          gas: '0x' + (300000).toString(16),
+          value: '0x0',
         }],
       })
 
@@ -147,7 +162,7 @@ export default function Home() {
     } finally {
       setIsPosting(false)
     }
-  } 
+  }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8 bg-gradient-to-b from-gray-900 to-gray-800 text-white">
@@ -166,6 +181,27 @@ export default function Home() {
           ) : (
             <p className="text-5xl font-bold">{bountyCount}</p>
           )}
+
+          {/* Manual Refresh Button */}
+          <button
+            onClick={() => {
+              setIsLoadingCount(true)
+              setReadError(null)
+              publicClient
+                .readContract({
+                  address: CONTRACT_ADDRESS,
+                  abi: bountyAbi,
+                  functionName: 'bountyCount',
+                  blockTag: 'latest',
+                })
+                .then((count) => setBountyCount(count.toString()))
+                .catch((err) => setReadError(err.message || 'Failed to read'))
+                .finally(() => setIsLoadingCount(false))
+            }}
+            className="mt-4 bg-gray-600 hover:bg-gray-700 px-6 py-2 rounded-lg text-white text-sm transition"
+          >
+            Refresh Count
+          </button>
         </div>
 
         <div className="mt-12 bg-gray-800/50 p-8 rounded-xl border border-gray-700">
