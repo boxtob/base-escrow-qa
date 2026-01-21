@@ -1,7 +1,5 @@
 'use client'
 
-export const dynamic = 'force-dynamic'
-
 import { useState, useEffect } from 'react'
 import { createPublicClient, http, parseUnits } from 'viem'
 import { baseSepolia } from 'viem/chains'
