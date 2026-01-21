@@ -2,9 +2,6 @@
 
 Decentralized Q&A bounty escrow on Coinbase Base L2.
 
-## Live Demo
-https://base-escrow-k3mevtjtb-boxtobs-projects.vercel.app/
-
 ## Live Contract
 [0xb4575AC1cCe8511feF15386BBD3012e35Ae573aa](https://sepolia.basescan.org/address/0xb4575AC1cCe8511feF15386BBD3012e35Ae573aa#code)  
 (verified on Basescan)
