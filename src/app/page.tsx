@@ -75,6 +75,11 @@ export default function Home() {
 
   // Post bounty function
   const postBounty = async () => {
+    if (typeof window === 'undefined') {
+      setPostError('Cannot post bounty on server – please reload')
+      return
+    }
+
     if (!amount || !questionId) {
       setPostError('Please fill both fields')
       return
